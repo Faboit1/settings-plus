@@ -24,9 +24,16 @@
 #  RENDER MODES
 #    BUTTON  a clickable "Label: VALUE" button. Only this mode can show a
 #            different hover tooltip per option. Default for TOGGLE/CYCLE.
-#    INPUT   a native checkbox / dropdown / slider / text field. Values are
-#            committed when any button on the page is pressed. Native widgets
-#            have no per-option hover. Default (and required) for SLIDER/TEXT.
+#            Clicking asks the server for a redrawn page, so there is a brief
+#            round trip; `menu.after-action` below controls how that looks.
+#    INPUT   a native checkbox / dropdown / slider / text field. The client
+#            changes these instantly with no server round trip, so they feel
+#            snappier. A per-option hover can still be attached with a
+#            MiniMessage <hover:show_text:'...'> tag inside the option's label -
+#            the server sends it, though whether the client draws a tooltip
+#            inside a dropdown is up to the client. Values are committed when any
+#            button on the page is pressed (the Back button counts).
+#            Default (and required) for SLIDER/TEXT.
 #
 #  ACTIONS - each entry is "kind: argument"
 #    player:    <cmd>              run as the player
@@ -48,10 +55,18 @@ menu:
   external-title: "<aqua>Settings"
   can-close-with-escape: true
 
-  # CLOSE, NONE or WAIT_FOR_RESPONSE.
-  # WAIT_FOR_RESPONSE parks the client on a waiting screen while the server
-  # sends the updated page, so toggling a setting does not flash the world.
-  after-action: WAIT_FOR_RESPONSE
+  # CLOSE, NONE or WAIT_FOR_RESPONSE. Applies when a BUTTON setting is clicked
+  # and the server sends back the redrawn page.
+  #   NONE              leave the current page up until the new one arrives.
+  #                     No intermediate screen - what you want for a menu.
+  #   WAIT_FOR_RESPONSE park on a "waiting for server" screen in between.
+  #   CLOSE             close the dialog, briefly showing the world behind it.
+  after-action: NONE
+
+  # Whether the dialog pauses a singleplayer world. Irrelevant on a server, and it
+  # must stay false while after-action is NONE - a paused dialog whose buttons do
+  # not unpause is rejected by the client.
+  pause: false
 
   columns: 2
 
@@ -69,8 +84,9 @@ menu:
       tooltip: "<gray>Return to the main menu"
       width: 200
     reset:
-      # Set enabled: false to hide the per-page reset button.
-      enabled: true
+      # Off by default because it throws away a player's choices. Set enabled: true
+      # to show it, and show-reset: false on any category that should not have one.
+      enabled: false
       label: "<gold>Reset page"
       tooltip: "<gray>Restore this page's defaults"
       width: 200
@@ -117,7 +133,9 @@ categories:
             actions:
               - "player: showchatfrom nobody"
         on-change:
-          - "sound: minecraft:ui.button.click 0.7 1.2"
+          # The client plays its own click on every dialog button, so adding
+          # "sound: minecraft:ui.button.click" here would be heard twice. Only add a
+          # sound: action when you want something *other* than the default click.
           - "actionbar: <gray>Chat visibility: %option%"
 
       private-messages:
@@ -136,11 +154,10 @@ categories:
             tooltip: "<gray>Only staff can reach you."
             actions:
               - "player: msgtoggle off"
-        on-change:
-          - "sound: minecraft:ui.button.click 0.7 1.0"
 
-      # A native dropdown instead of a cycling button. No per-option hover, but
-      # the whole list is visible at once - better when there are many options.
+      # A native dropdown instead of a cycling button. The client changes it with
+      # no server round trip, so it reacts instantly; the whole list is visible at
+      # once, which reads better for long lists.
       chat-filter:
         type: CYCLE
         render: INPUT
@@ -191,7 +208,8 @@ categories:
         step: 5
         default: "70"
         # %s is replaced by the current number.
-        slider-format: "Volume: %s%%"
+        # Two arguments, in this order: the label, then the value.
+        slider-format: "%s: %s%%"
         width: 260
         on-change:
           - "console: soundprefs %player% volume %value%"

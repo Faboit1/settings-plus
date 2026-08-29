@@ -22,6 +22,9 @@ public final class ConfigLoader {
     private static final int MAX_WIDTH = 1024;
     private static final int MAX_COLUMNS = 8;
 
+    /** Mirrors vanilla's {@code options.generic_value}: the label, then the value. */
+    private static final String DEFAULT_SLIDER_FORMAT = "%s: %s";
+
     private final List<String> warnings = new ArrayList<>();
 
     /** @return non-fatal problems found during the last {@link #load} call. */
@@ -58,11 +61,25 @@ public final class ConfigLoader {
         ConfigurationSection buttons = menu.getConfigurationSection("buttons");
         MenuConfig.Button exit = button(buttons, "exit", "<red>Close", "<gray>Close the settings menu", 200);
         MenuConfig.Button back = button(buttons, "back", "<gray>« Back", "<gray>Return to the main menu", 200);
+        // Opt-in: a reset button is destructive, so it only appears when asked for.
         MenuConfig.Button reset = null;
-        if (buttons != null && buttons.isConfigurationSection("reset")
-                && buttons.getBoolean("reset.enabled", true)) {
+        if (buttons != null && buttons.getBoolean("reset.enabled", false)) {
             reset = button(buttons, "reset", "<gold>Reset", "<gray>Restore this page's defaults", 200);
         }
+
+        AfterAction afterAction = afterAction(menu.getString("after-action"), "menu.after-action");
+        boolean pause = menu.getBoolean("pause", false);
+        if (pause && afterAction == AfterAction.NONE) {
+            // The client refuses this combination outright: a paused dialog whose buttons never
+            // unpause would strand a singleplayer game. The server rejects it while building the
+            // dialog, so catching it here turns a per-player crash into one startup warning.
+            warnings.add("menu: after-action NONE cannot be combined with pause: true, because"
+                    + " nothing would ever unpause the game; using pause: false");
+            pause = false;
+        }
+
+        MenuConfig.Button done =
+                button(buttons, "done", "<green>Done", "<gray>Save and go back", 200);
 
         return new MenuConfig(
                 menu.getString("title", "<bold>Settings</bold>"),
@@ -70,10 +87,12 @@ public final class ConfigLoader {
                 menu.getStringList("body"),
                 clamp(menu.getInt("columns", 2), 1, MAX_COLUMNS, "menu.columns"),
                 menu.getBoolean("can-close-with-escape", true),
-                afterAction(menu.getString("after-action"), "menu.after-action"),
+                afterAction,
+                pause,
                 exit,
                 back,
                 reset,
+                done,
                 categories
         );
     }
@@ -121,6 +140,7 @@ public final class ConfigLoader {
                 clamp(section.getInt("columns", 1), 1, MAX_COLUMNS, path + ".columns"),
                 clamp(section.getInt("width", 200), MIN_WIDTH, MAX_WIDTH, path + ".width"),
                 section.getBoolean("can-close-with-escape", true),
+                section.getBoolean("show-reset", true),
                 settings
         );
     }
@@ -168,6 +188,17 @@ public final class ConfigLoader {
             step = 1.0F;
         }
 
+        // Minecraft feeds a slider's caption two arguments - the label, then the value - so a
+        // format with only one placeholder silently swallows the value and prints the label twice
+        // over. Correct it rather than shipping a slider whose number never appears.
+        String sliderFormat = section.getString("slider-format", DEFAULT_SLIDER_FORMAT);
+        if (type == SettingType.SLIDER && countPlaceholders(sliderFormat) < 2) {
+            warnings.add(path + ".slider-format: '" + sliderFormat + "' has fewer than two"
+                    + " placeholders, so the value cannot be shown; using '"
+                    + DEFAULT_SLIDER_FORMAT + "'. The first is the label, the second the value.");
+            sliderFormat = DEFAULT_SLIDER_FORMAT;
+        }
+
         return new SettingDefinition(
                 key,
                 type,
@@ -186,7 +217,7 @@ public final class ConfigLoader {
                 min,
                 max,
                 step,
-                section.getString("slider-format", "%s"),
+                sliderFormat,
                 clamp(section.getInt("max-length", 64), 1, 32767, path + ".max-length"),
                 section.getString("placeholder", ""),
                 section.getInt("multiline-lines", 0),
@@ -281,9 +312,29 @@ public final class ConfigLoader {
 
     private static AfterAction afterAction(String raw, String path) {
         if (raw == null) {
-            return AfterAction.WAIT_FOR_RESPONSE;
+            return AfterAction.NONE;
         }
         return enumValue(AfterAction.class, raw, path);
+    }
+
+    /**
+     * Counts the format arguments a slider caption supplies, accepting both {@code %s} and the
+     * positional {@code %1$s} form. A literal {@code %%} is an escaped percent, not an argument.
+     */
+    private static int countPlaceholders(String format) {
+        int count = 0;
+        for (int i = 0; i < format.length() - 1; i++) {
+            if (format.charAt(i) != '%') {
+                continue;
+            }
+            char next = format.charAt(i + 1);
+            if (next == '%') {
+                i++;
+            } else if (next == 's' || Character.isDigit(next)) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static <E extends Enum<E>> E enumValue(Class<E> type, String raw, String path) {

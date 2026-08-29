@@ -140,6 +140,7 @@ public final class DialogManager {
                 .externalTitle(menu.externalTitle() == null
                         ? null : Text.mm(menu.externalTitle(), placeholders.parsed(), placeholders.raw()))
                 .canCloseWithEscape(menu.canCloseWithEscape())
+                .pause(menu.pause())
                 .afterAction(afterAction(menu.afterAction()))
                 .body(bodyLines(menu.body(), placeholders, null))
                 .inputs(List.of())
@@ -178,7 +179,7 @@ public final class DialogManager {
             buttons.add(buildButton(player, category, setting));
         }
 
-        if (menu.reset() != null) {
+        if (menu.reset() != null && category.showReset()) {
             buttons.add(ActionButton.builder(Text.mm(menu.reset().label(), placeholders.parsed(), placeholders.raw()))
                     .tooltip(tooltipOrNull(menu.reset().tooltip(), placeholders))
                     .width(menu.reset().width())
@@ -187,6 +188,21 @@ public final class DialogManager {
                         plugin.messages().send(player, "category-reset",
                                 Map.of("category", category.id()));
                         open(player, category.id());
+                    }))
+                    .build());
+        }
+
+        if (buttons.isEmpty()) {
+            // A multi-action dialog must carry at least one button, and a page of nothing but
+            // native inputs would have none - leaving the player no way to commit what they
+            // typed, since input values only reach the server on a button press.
+            buttons.add(ActionButton.builder(Text.mm(menu.done().label(),
+                            placeholders.parsed(), placeholders.raw()))
+                    .tooltip(tooltipOrNull(menu.done().tooltip(), placeholders))
+                    .width(menu.done().width())
+                    .action(click(view -> {
+                        commitInputs(player, category, view);
+                        open(player, null);
                     }))
                     .build());
         }
@@ -204,6 +220,7 @@ public final class DialogManager {
                 .externalTitle(category.externalTitle() == null
                         ? null : Text.mm(category.externalTitle(), placeholders.parsed(), placeholders.raw()))
                 .canCloseWithEscape(category.canCloseWithEscape())
+                .pause(menu.pause())
                 .afterAction(afterAction(menu.afterAction()))
                 .body(bodyLines(category.body(), placeholders, category.icon()))
                 .inputs(inputs)

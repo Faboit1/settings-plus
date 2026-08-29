@@ -10,12 +10,23 @@ public record MenuConfig(
         int columns,
         boolean canCloseWithEscape,
         AfterAction afterAction,
+        /**
+         * Whether the dialog pauses a singleplayer game. Meaningless on a server, and a paused
+         * dialog may not use {@link AfterAction#NONE} - the client would never unpause.
+         */
+        boolean pause,
         /** Button that leaves the root menu. */
         Button exit,
         /** Button that returns from a category to the root menu. */
         Button back,
         /** Button that resets a whole category, or {@code null} to hide it. */
         Button reset,
+        /**
+         * Fallback button for a page whose settings are all native inputs. Minecraft requires a
+         * multi-action dialog to carry at least one button, and such a page would otherwise have
+         * none - and no way to commit what the player typed.
+         */
+        Button done,
         List<Category> categories
 ) {
     public MenuConfig {

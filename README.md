@@ -94,13 +94,47 @@ untouched instead of emptying everyone's menu.
 applies it immediately, and redraws the page. **This is the only mode with a per-option hover
 tooltip**, which is why it is the default for `TOGGLE` and `CYCLE`.
 
-`render: INPUT` draws a native widget instead — checkbox, dropdown, slider or text field. The whole
-option list is visible at once, which reads better for long lists, but Minecraft gives native
-widgets no per-option hover. `SLIDER` and `TEXT` only exist in this form.
+`render: INPUT` draws a native widget instead — checkbox, dropdown, slider or text field. The client
+changes these itself with **no server round trip**, so they react instantly, and the whole option
+list is visible at once. A per-option hover can still be attached with a MiniMessage
+`<hover:show_text:'...'>` tag inside the option's label — the server sends it, though whether the
+client draws a tooltip inside a dropdown is up to the client. `SLIDER` and `TEXT` only exist in this
+form.
+
+### Sliders
+
+A slider's caption is given **two** arguments, in this order: the label, then the value. So
+`slider-format: "%s: %s%%"` renders `Volume: 70%`. A format with only one placeholder swallows the
+value and prints the label in its place — the plugin corrects that on load and logs a warning.
 
 The two mix freely on one page. Values typed or dragged into native widgets are committed when
 *any* button on the page is pressed — including a cycling button beside them — so nothing is lost
 by interacting with the page in any order.
+
+### Redrawing
+
+Clicking a `BUTTON` setting asks the server for a redrawn page. `menu.after-action` controls what
+the player sees in between:
+
+| | |
+|---|---|
+| `NONE` (default) | the current page stays up until the redraw arrives — no intermediate screen |
+| `WAIT_FOR_RESPONSE` | a "waiting for server" screen in between, which on a fast redraw reads as a flicker |
+| `CLOSE` | close the dialog, briefly showing the world behind it |
+
+`NONE` requires `pause: false` (the default). A paused dialog whose buttons never unpause is
+rejected by the client, so the plugin corrects that pairing on load rather than letting it fail
+when a player opens the menu.
+
+### The reset button
+
+Off by default — it throws away a player's choices. Turn it on menu-wide with
+`menu.buttons.reset.enabled: true`, and hide it on individual pages with `show-reset: false` on the
+category.
+
+A page whose settings are *all* native inputs would otherwise carry no buttons at all, which
+Minecraft rejects and which would leave nothing to commit the values with. Such a page
+automatically gets a `Done` button, configurable under `menu.buttons.done`.
 
 ---
 
@@ -126,6 +160,10 @@ A line with no recognised prefix is treated as a player command, so `spawn`, `/s
 (`minecraft:tp ...`, `say hello: there`) is not mistaken for a prefix.
 
 An option's own `actions` run first, then the setting's `on-change`.
+
+The client already plays its own click on every dialog button, so adding
+`sound: minecraft:ui.button.click` to `on-change` is heard **twice**. Only add a `sound:` action
+when you want something other than the default click.
 
 ### Placeholders
 
