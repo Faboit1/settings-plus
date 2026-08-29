@@ -1,0 +1,41 @@
+name: SettingsPlus
+version: '${project.version}'
+main: dev.faboit.settingsplus.SettingsPlus
+api-version: '1.21'
+folia-supported: true
+description: Fully configurable, dialog-powered player settings menus.
+author: Faboit1
+website: https://github.com/Faboit1/settings-plus
+
+commands:
+  settings:
+    description: Open the settings menu.
+    usage: /settings [category]
+    aliases: [options, prefs]
+    permission: settingsplus.use
+    permission-message: You do not have permission to open the settings menu.
+  settingsplus:
+    description: SettingsPlus operator tools.
+    usage: /settingsplus <reload|verify|get|set|reset|open|info>
+    aliases: [spadmin, settingsadmin]
+
+permissions:
+  settingsplus.use:
+    description: Allows opening the settings menu.
+    default: true
+  settingsplus.admin:
+    description: Grants every SettingsPlus operator command.
+    default: op
+    children:
+      settingsplus.admin.reload: true
+      settingsplus.admin.edit: true
+      settingsplus.admin.open: true
+  settingsplus.admin.reload:
+    description: Allows /settingsplus reload, verify and info.
+    default: op
+  settingsplus.admin.edit:
+    description: Allows reading and writing other players' values.
+    default: op
+  settingsplus.admin.open:
+    description: Allows opening the menu for another player.
+    default: op

@@ -1,0 +1,45 @@
+# ---------------------------------------------------------------------------
+#  SettingsPlus - plugin behaviour
+#
+#  The menu itself lives in settings.yml. This file only controls how the
+#  plugin runs and what it says.
+# ---------------------------------------------------------------------------
+
+storage:
+  # How often (in seconds) changed values are written to disk. Values are also
+  # written when a player quits and when the server stops, so this is only a
+  # safety net against a hard crash. Set to 0 to disable the timer.
+  save-interval-seconds: 300
+
+# Re-run every setting's actions when a player joins, so server-side state
+# (such as the /showchatfrom mode below) survives a reconnect. Individual
+# settings can opt out with `apply-on-join: false`.
+apply-on-join: true
+
+# How long to wait after join before re-applying. Give other plugins time to
+# register their commands and load the player's data first.
+apply-on-join-delay-ticks: 40
+
+dialog:
+  # How long a sent dialog's buttons stay clickable, in minutes. A player who
+  # leaves the menu open longer than this gets an inert page until they reopen
+  # it. Higher values keep more callbacks in memory.
+  callback-lifetime-minutes: 60
+
+# Every message is MiniMessage. %placeholders% are filled in where noted.
+messages:
+  prefix: "<gradient:#8be9fd:#50fa7b><bold>Settings</bold></gradient> <dark_gray>|</dark_gray> "
+  no-permission: "<red>You do not have permission to do that."
+  players-only: "<red>Only players can open the settings menu."
+  unknown-category: "<red>There is no settings category called <white>%category%</white>."
+  unknown-setting: "<red>There is no setting called <white>%setting%</white>."
+  unknown-value: "<red><white>%value%</white> is not a valid value for <white>%setting%</white>."
+  unknown-player: "<red>No player called <white>%player%</white> is online."
+  option-locked: "<red>You have not unlocked that option yet."
+  reloaded: "<green>Reloaded <white>%categories%</white> categories and <white>%settings%</white> settings in <white>%ms%ms</white>."
+  dialog-error: "<red>Something went wrong with that menu: <white>%error%</white>."
+  reload-failed: "<red>Reload failed: <white>%error%</white>. The previous configuration is still active."
+  category-reset: "<green>Reset <white>%category%</white> to its defaults."
+  value-set: "<green>Set <white>%setting%</white> to <white>%value%</white> for <white>%player%</white>."
+  value-get: "<gray><white>%setting%</white> is <white>%value%</white> for <white>%player%</white>."
+  usage: "<gray>Usage: <white>%usage%"
