@@ -6,6 +6,11 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Publish a release under this tag (e.g. v1.0.0). Leave blank to only build.'
+        required: false
+        default: ''
 
 permissions:
   contents: read
@@ -55,8 +60,10 @@ jobs:
 
   release:
     name: Publish release
-    # Only tags produce a release; every other push just leaves a build artifact.
-    if: startsWith(github.ref, 'refs/tags/v')
+    # A v* tag publishes a release; so does a manual run given a release_tag, which
+    # is how a release gets cut without push access to tags. Every other push just
+    # leaves a build artifact.
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -79,6 +86,7 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
           files: target/SettingsPlus-*.jar
           generate_release_notes: true
           draft: false
