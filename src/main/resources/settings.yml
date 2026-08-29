@@ -1,0 +1,273 @@
+# ---------------------------------------------------------------------------
+#  SettingsPlus - the menu
+#
+#  Everything a player sees is defined here. Add, remove and reorder freely:
+#  nothing in this file is hardcoded in the plugin.
+#
+#  Every text field is MiniMessage: https://docs.advntr.dev/minimessage/format
+#  Placeholders, usable in labels, tooltips, messages and commands alike:
+#    %player%  %uuid%  %world%
+#    %category%  %category_label%
+#    %setting%  %setting_label%
+#    %value%   the stored value, e.g. "friends"
+#    %option%  the selected option's label, with its colours
+#    %option_plain%  the same label with formatting stripped
+#
+#  SETTING TYPES
+#    TOGGLE   two options, drawn as a cycling button or a checkbox
+#    CYCLE    any number of options, drawn as a cycling button or a dropdown
+#    SLIDER   a number between min and max
+#    TEXT     a free-text field
+#    ACTION   runs its on-change actions; stores nothing
+#    SUBMENU  opens the category named in `default`; stores nothing
+#
+#  RENDER MODES
+#    BUTTON  a clickable "Label: VALUE" button. Only this mode can show a
+#            different hover tooltip per option. Default for TOGGLE/CYCLE.
+#    INPUT   a native checkbox / dropdown / slider / text field. Values are
+#            committed when any button on the page is pressed. Native widgets
+#            have no per-option hover. Default (and required) for SLIDER/TEXT.
+#
+#  ACTIONS - each entry is "kind: argument"
+#    player:    <cmd>              run as the player
+#    console:   <cmd>              run from console
+#    message:   <minimessage>      chat message to the player
+#    actionbar: <minimessage>      action bar message
+#    broadcast: <minimessage>      chat message to everyone
+#    sound:     <key> [vol] [pitch]
+#    open:      <category|root>    open another page
+#    close:                       close the dialog
+#    refresh:                     redraw the current page
+#    reset:     [category]        restore defaults
+#  A line with no recognised prefix is treated as a player command.
+# ---------------------------------------------------------------------------
+
+menu:
+  title: "<gradient:#8be9fd:#bd93f9><bold>Your Settings</bold></gradient>"
+  # Shown on the pause screen entry. Omit to reuse the title.
+  external-title: "<aqua>Settings"
+  can-close-with-escape: true
+
+  # CLOSE, NONE or WAIT_FOR_RESPONSE.
+  # WAIT_FOR_RESPONSE parks the client on a waiting screen while the server
+  # sends the updated page, so toggling a setting does not flash the world.
+  after-action: WAIT_FOR_RESPONSE
+
+  columns: 2
+
+  body:
+    - "<gray>Pick a category to get started."
+    - "<dark_gray><italic>Changes save the moment you make them."
+
+  buttons:
+    exit:
+      label: "<red>Close"
+      tooltip: "<gray>Close this menu"
+      width: 200
+    back:
+      label: "<gray>« Back"
+      tooltip: "<gray>Return to the main menu"
+      width: 200
+    reset:
+      # Set enabled: false to hide the per-page reset button.
+      enabled: true
+      label: "<gold>Reset page"
+      tooltip: "<gray>Restore this page's defaults"
+      width: 200
+
+categories:
+
+  # -------------------------------------------------------------------------
+  #  The example from the brief: one button, three states, three commands.
+  # -------------------------------------------------------------------------
+  chat:
+    title: "<#8be9fd><bold>Chat</bold>"
+    label: "<#8be9fd>Chat"
+    tooltip: "<gray>Who you see, and what you hear from them"
+    icon: PAPER
+    columns: 1
+    body:
+      - "<gray>Control what reaches your chat box."
+
+    settings:
+
+      show-chat:
+        type: CYCLE
+        render: BUTTON
+        label: "<white>Show chat"
+        # %label% and %option% are filled in; style the whole face however you like.
+        button-format: "%label% <dark_gray>»</dark_gray> %option%"
+        default: everyone
+        width: 260
+        apply-on-join: true
+        options:
+          - id: everyone
+            label: "<green><bold>ON</bold>"
+            tooltip: "<green><bold>Everyone</bold><newline><gray>You see every public message."
+            actions:
+              - "player: showchatfrom everyone"
+          - id: friends
+            label: "<yellow><bold>FRIENDS ONLY</bold>"
+            tooltip: "<yellow><bold>Friends only</bold><newline><gray>Only your friends reach your chat.<newline><dark_gray>Everyone else is hidden."
+            actions:
+              - "player: showchatfrom friends"
+          - id: nobody
+            label: "<red><bold>OFF</bold>"
+            tooltip: "<red><bold>Off</bold><newline><gray>Public chat is hidden entirely.<newline><dark_gray>Direct messages still arrive."
+            actions:
+              - "player: showchatfrom nobody"
+        on-change:
+          - "sound: minecraft:ui.button.click 0.7 1.2"
+          - "actionbar: <gray>Chat visibility: %option%"
+
+      private-messages:
+        type: TOGGLE
+        label: "<white>Private messages"
+        default: "on"
+        width: 260
+        options:
+          - id: "on"
+            label: "<green>ALLOWED"
+            tooltip: "<gray>Anyone can <white>/msg</white> you."
+            actions:
+              - "player: msgtoggle on"
+          - id: "off"
+            label: "<red>BLOCKED"
+            tooltip: "<gray>Only staff can reach you."
+            actions:
+              - "player: msgtoggle off"
+        on-change:
+          - "sound: minecraft:ui.button.click 0.7 1.0"
+
+      # A native dropdown instead of a cycling button. No per-option hover, but
+      # the whole list is visible at once - better when there are many options.
+      chat-filter:
+        type: CYCLE
+        render: INPUT
+        label: "<white>Language filter"
+        default: moderate
+        width: 260
+        options:
+          - id: off
+            label: "Off"
+          - id: moderate
+            label: "Moderate"
+          - id: strict
+            label: "Strict"
+        on-change:
+          - "console: chatfilter %player% %value%"
+
+  # -------------------------------------------------------------------------
+  #  Sliders and text fields: native widgets, committed on any button press.
+  # -------------------------------------------------------------------------
+  notifications:
+    title: "<#f1fa8c><bold>Notifications</bold>"
+    label: "<#f1fa8c>Notifications"
+    tooltip: "<gray>Sounds, popups and join messages"
+    icon: BELL
+    columns: 2
+    body:
+      - "<gray>Tune how loudly the server talks to you."
+
+    settings:
+
+      join-messages:
+        type: TOGGLE
+        label: "<white>Join & leave"
+        default: shown
+        options:
+          - id: shown
+            label: "<green>SHOWN"
+            tooltip: "<gray>See who comes and goes."
+          - id: hidden
+            label: "<dark_gray>HIDDEN"
+            tooltip: "<gray>A quieter chat box."
+
+      notification-volume:
+        type: SLIDER
+        label: "<white>Notification volume"
+        min: 0
+        max: 100
+        step: 5
+        default: "70"
+        # %s is replaced by the current number.
+        slider-format: "Volume: %s%%"
+        width: 260
+        on-change:
+          - "console: soundprefs %player% volume %value%"
+
+      afk-message:
+        type: TEXT
+        label: "<white>Away message"
+        max-length: 48
+        placeholder: "Back soon!"
+        default: "Back soon!"
+        width: 260
+        on-change:
+          - "console: afkmsg %player% %value%"
+
+      test-sound:
+        type: ACTION
+        label: "<aqua>▶ Preview sound"
+        tooltip: "<gray>Play the notification sound at your current volume."
+        on-change:
+          - "sound: minecraft:block.note_block.pling 1.0 1.5"
+
+  # -------------------------------------------------------------------------
+  #  Permissions, locked options, and jumping between pages.
+  # -------------------------------------------------------------------------
+  cosmetics:
+    title: "<#ff79c6><bold>Cosmetics</bold>"
+    label: "<#ff79c6>Cosmetics"
+    tooltip: "<gray>Particles, trails and nametags"
+    icon: FIREWORK_ROCKET
+    columns: 1
+    body:
+      - "<gray>Some options unlock with rank."
+
+    settings:
+
+      particles:
+        type: CYCLE
+        label: "<white>Trail"
+        default: none
+        width: 260
+        options:
+          - id: none
+            label: "<gray>NONE"
+            tooltip: "<gray>No trail."
+          - id: flame
+            label: "<gold>FLAME"
+            tooltip: "<gold>A trail of embers."
+            actions:
+              - "console: trail %player% flame"
+          - id: soul
+            label: "<aqua>SOUL"
+            # Options can require their own permission. A player without it is
+            # skipped when the button cycles, so it is never selectable.
+            permission: settingsplus.cosmetic.soul
+            tooltip: "<aqua>Soul fire.<newline><dark_gray>Requires <white>VIP</white>."
+            actions:
+              - "console: trail %player% soul"
+
+      nametag:
+        type: TOGGLE
+        label: "<white>Show nametag"
+        # Hides the whole setting from players without this permission - unless
+        # locked-label is set, in which case they see a greyed-out teaser.
+        permission: settingsplus.cosmetic.nametag
+        locked-label: "%label% <dark_gray>» <red>🔒 LOCKED"
+        locked-tooltip: "<red>Unlocks at <white>VIP</white>."
+        default: shown
+        options:
+          - id: shown
+            label: "<green>SHOWN"
+          - id: hidden
+            label: "<dark_gray>HIDDEN"
+
+      jump-to-chat:
+        type: SUBMENU
+        label: "<gray>Chat settings <dark_gray>›"
+        tooltip: "<gray>Jump to the chat page."
+        # For SUBMENU, `default` names the category to open.
+        default: chat

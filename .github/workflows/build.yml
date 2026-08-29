@@ -1,0 +1,84 @@
+name: Build
+
+on:
+  push:
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      - name: Build and test
+        run: mvn -B --no-transfer-progress clean verify
+
+      - name: Read version
+        id: version
+        run: echo "version=$(mvn -B -q help:evaluate -Dexpression=project.version -DforceStdout)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: SettingsPlus-${{ steps.version.outputs.version }}-${{ github.sha }}
+          path: target/SettingsPlus-*.jar
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: target/surefire-reports/
+          if-no-files-found: ignore
+
+  release:
+    name: Publish release
+    # Only tags produce a release; every other push just leaves a build artifact.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+
+      - name: Package
+        run: mvn -B --no-transfer-progress clean package
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/SettingsPlus-*.jar
+          generate_release_notes: true
+          draft: false
