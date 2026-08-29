@@ -27,6 +27,8 @@ public record Category(
         /** Width of the root-menu button that opens this category. */
         int width,
         boolean canCloseWithEscape,
+        /** Whether this page shows the reset button; ignored when it is disabled menu-wide. */
+        boolean showReset,
         List<SettingDefinition> settings
 ) {
     public Category {
